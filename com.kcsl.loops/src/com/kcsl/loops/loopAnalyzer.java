@@ -59,7 +59,7 @@ public class loopAnalyzer {
 	 * The following is the parts of the name:
 	 * 1- The method name corresponding to the CFG.
 	 */
-	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "PCG@@@%s@@@%s@@@%s";
+	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "PCG@%s@%s@%s";
 	
 	public loopAnalyzer()
 	{
