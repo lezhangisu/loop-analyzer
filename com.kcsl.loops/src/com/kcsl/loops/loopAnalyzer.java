@@ -19,6 +19,7 @@ import com.ensoftcorp.atlas.core.script.Common;
 import com.ensoftcorp.atlas.core.xcsg.XCSG;
 import com.ensoftcorp.atlas.ui.viewer.graph.DisplayUtil;
 import com.ensoftcorp.atlas.ui.viewer.graph.SaveUtil;
+import com.ensoftcorp.open.pcg.common.PCGFactory;
 import com.ensoftcorp.atlas.core.script.CommonQueries;
 import com.kcsl.loops.VerificationProperties;
 import com.ensoftcorp.atlas.core.markup.Markup;
@@ -59,7 +60,8 @@ public class loopAnalyzer {
 	 * The following is the parts of the name:
 	 * 1- The method name corresponding to the CFG.
 	 */
-	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "PCG@%s@%s@%s";
+	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "CFG@%s@%s@%s";
+	private static final String PCG_GRAPH_FILE_NAME_PATTERN = "PCG@%s@%s@%s";
 	
 	public loopAnalyzer()
 	{
@@ -73,11 +75,23 @@ public class loopAnalyzer {
         }
             
         try{
-            String cfgFileName = String.format(CFG_GRAPH_FILE_NAME_PATTERN, sourceFile,methodName, VerificationProperties.getGraphImageFileNameExtension());
+            String cfgFileName = String.format(CFG_GRAPH_FILE_NAME_PATTERN, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
             SaveUtil.saveGraph(new File(currentgotoGraphsOutputDirectory, cfgFileName), cfgGraph, markup).join();
         } catch (InterruptedException e) {}
             
     }	
+	
+	private static void saveDisplayPCG(Graph pcgGraph, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
+        if(displayGraphs){
+            DisplayUtil.displayGraph(markup, pcgGraph);
+        }
+            
+        try{
+            String pcgFileName = String.format(PCG_GRAPH_FILE_NAME_PATTERN, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
+            SaveUtil.saveGraph(new File(currentgotoGraphsOutputDirectory, pcgFileName), pcgGraph, markup).join();
+        } catch (InterruptedException e) {}
+            
+    }
 	
 	private void createDirectory(){
         String containingDirectoryName = String.format(GOTO_GRAPH_DIRECTORY_NAME_PATTERN);
@@ -195,9 +209,17 @@ public class loopAnalyzer {
 				Markup markup = new Markup();
 				markup.set(loop_children_nodes, MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
 				markup.set(Common.toQ(valid_loop_label_nodeset), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
+				
+				// set file name
 				String sourceFile = getQualifiedFunctionName(function);
 				String methodName =  function.getAttr(XCSG.name).toString();
-				saveDisplayCFG(cfg.eval(),sourceFile,methodName, markup, false );
+				
+				// output CFG
+				saveDisplayCFG(cfg.eval(),sourceFile,methodName, markup, false);
+				
+				// output PCG
+				Q pcg = PCGFactory.create(cfg, loop_children_nodes).getPCG();
+				saveDisplayPCG(pcg.eval(),sourceFile,methodName, markup, false);
 				
 			}
 			
