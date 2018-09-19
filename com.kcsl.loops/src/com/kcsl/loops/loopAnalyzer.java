@@ -4,10 +4,13 @@ package com.kcsl.loops;
 import java.awt.Color;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.ensoftcorp.atlas.core.db.graph.Edge;
 import com.ensoftcorp.atlas.core.db.graph.Graph;
 import com.ensoftcorp.atlas.core.db.graph.Node;
+import com.ensoftcorp.atlas.core.db.set.AtlasHashSet;
 import com.ensoftcorp.atlas.core.db.set.AtlasSet;
 import com.ensoftcorp.atlas.core.index.common.SourceCorrespondence;
 import com.ensoftcorp.atlas.core.markup.Markup;
@@ -127,7 +130,7 @@ public class loopAnalyzer {
 		return getQualifiedName(function, XCSG.Package);
 	}
 	
-	public static void tagLoops() {
+	public static void analyzeLoops() {
 		// get saving directory
 		new loopAnalyzer().createDirectory();
 		
@@ -155,15 +158,43 @@ public class loopAnalyzer {
 			// avoid empty CFGs
 			if(!CommonQueries.isEmpty(cfg)) {
 				// get loop label nodes
-				Q loop_label_nodes = CommonQueries.nodesStartingWith(cfg.nodes(XCSG.Loop), "label ");
+				AtlasSet<Node> loop_label_nodeset = CommonQueries.nodesStartingWith(cfg.nodes(XCSG.Loop), "label ").eval().nodes();
 				
+				// verify if the goto and label are the causes of the loop
+				AtlasSet<Node> valid_loop_label_nodeset = new AtlasHashSet<Node>();
+				for(Node loop_label : loop_label_nodeset) {
+					AtlasSet<Node> loop_label_pred_goto = CommonQueries.nodesStartingWith(cfg.predecessors(Common.toQ(loop_label)), "goto ").eval().nodes();
+					if(loop_label_pred_goto.size()==0) {
+						continue;
+					}
+					AtlasSet<Node> loop_label_loopchild_goto = CommonQueries.nodesStartingWith(Common.universe().edges(XCSG.LoopChild).
+							forward(Common.toQ(loop_label)).retainNodes(), "goto ").eval().nodes();
+					if(loop_label_loopchild_goto.size()==0) {
+						continue;
+					}
+					
+					for(Node goto_node : loop_label_pred_goto) {
+						if(loop_label_loopchild_goto.contains(goto_node)) {
+							valid_loop_label_nodeset.add(loop_label);
+							break;
+						}
+					}
+				}
+				
+				// check if there are valid loop labels
+				if(valid_loop_label_nodeset.size() == 0) {
+					continue;
+				}
+				
+				// if we have valid loop labels
 				// get loop children nodes
-				Q loop_children_nodes = Common.universe().edges(XCSG.LoopChild).forward(loop_label_nodes).retainNodes();
+				Q loop_children_nodes = Common.universe().edges(XCSG.LoopChild).forward(Common.toQ(valid_loop_label_nodeset)).retainNodes();
+				
 				
 				// mark up
 				Markup markup = new Markup();
 				markup.set(loop_children_nodes, MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
-				markup.set(loop_label_nodes, MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
+				markup.set(Common.toQ(valid_loop_label_nodeset), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
 				String sourceFile = getQualifiedFunctionName(function);
 				String methodName =  function.getAttr(XCSG.name).toString();
 				saveDisplayCFG(cfg.eval(),sourceFile,methodName, markup, false );
