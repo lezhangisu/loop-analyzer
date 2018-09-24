@@ -57,8 +57,8 @@ public class gotoAnalyzer {
 	 * The following is the parts of the name:
 	 * 1- The method name corresponding to the CFG.
 	 */
-	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "CFG@%s@%s@%s";
-	private static final String PCG_GRAPH_FILE_NAME_PATTERN = "PCG@%s@%s@%s";
+	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "%s-CFG@%s@%s@%s";
+	private static final String PCG_GRAPH_FILE_NAME_PATTERN = "%s-PCG@%s@%s@%s";
 	
 	public gotoAnalyzer()
 	{
@@ -66,25 +66,25 @@ public class gotoAnalyzer {
 		
 	}
 	
-	private static void saveDisplayCFG(Graph cfgGraph, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
+	private static void saveDisplayCFG(Graph cfgGraph, int num, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
         if(displayGraphs){
             DisplayUtil.displayGraph(markup, cfgGraph);
         }
             
         try{
-            String cfgFileName = String.format(CFG_GRAPH_FILE_NAME_PATTERN, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
+            String cfgFileName = String.format(CFG_GRAPH_FILE_NAME_PATTERN, num, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
             SaveUtil.saveGraph(new File(currentgotoGraphsOutputDirectory, cfgFileName), cfgGraph, markup).join();
         } catch (InterruptedException e) {}
             
     }	
 	
-	private static void saveDisplayPCG(Graph pcgGraph, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
+	private static void saveDisplayPCG(Graph pcgGraph, int num, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
         if(displayGraphs){
             DisplayUtil.displayGraph(markup, pcgGraph);
         }
             
         try{
-            String pcgFileName = String.format(PCG_GRAPH_FILE_NAME_PATTERN, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
+            String pcgFileName = String.format(PCG_GRAPH_FILE_NAME_PATTERN, num, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
             SaveUtil.saveGraph(new File(currentgotoGraphsOutputDirectory, pcgFileName), pcgGraph, markup).join();
         } catch (InterruptedException e) {}
             
@@ -148,18 +148,23 @@ public class gotoAnalyzer {
 		Q functions = Common.universe().nodesTaggedWithAny(XCSG.Function);
 		
 //		AtlasSet<Node> funSet = new AtlasHashSet<Node>();
+		int num = 1;
 		for(Node function: functions.eval().nodes()) {
 //			Log.info("Processing " + function.getAttr(XCSG.name));
 
 			Q func_q = Common.toQ(function);
 			// parse the function
 			
-			process_func(func_q);
+			boolean flag = process_func(func_q, num);
+			
+			if(flag) {
+				num++;
+			}
 			
 		}
 	}
 	
-	private static void process_func(Q function) {
+	private static boolean process_func(Q function, int num) {
 		Node func_node = function.eval().nodes().getFirst();
 		
 		Q cfg = CommonQueries.cfg(function);
@@ -180,7 +185,7 @@ public class gotoAnalyzer {
 //		Log.info(func_node.getAttr(XCSG.name).toString()+"||"+label_set.size());
 		if(label_set.size() <1) {
 			
-			return;
+			return false;
 		}
 		
 		Log.info(func_node.getAttr(XCSG.name).toString());
@@ -198,7 +203,7 @@ public class gotoAnalyzer {
 		Log.info("NAME: "+methodName);
 		
 		// output CFG
-		saveDisplayCFG(cfg.eval(),sourceFile, methodName, markup, false);
+		saveDisplayCFG(cfg.eval(), num, sourceFile, methodName, markup, false);
 		
 		// get PCG seeds
 		Q control_nodes = cfg.nodes(XCSG.ControlFlowCondition);
@@ -210,8 +215,9 @@ public class gotoAnalyzer {
 		markup2.set(Common.toQ(goto_set), MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
 		markup2.set(Common.toQ(label_set), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
 		Q pcg = PCGFactory.create(cfg, Common.toQ(pcg_seeds)).getPCG();
-		saveDisplayPCG(pcg.eval(), sourceFile, methodName, markup2, false);
+		saveDisplayPCG(pcg.eval(), num, sourceFile, methodName, markup2, false);
 		
+		return true;
 	}
 
 	
