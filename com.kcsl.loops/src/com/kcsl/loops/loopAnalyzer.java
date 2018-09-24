@@ -218,18 +218,19 @@ public class loopAnalyzer {
 				saveDisplayCFG(cfg.eval(),sourceFile,methodName, markup, false);
 				
 				// get node set to generate PCG
-				Q cfg_goto_nodes = CommonQueries.nodesStartingWith(loop_children_nodes, "goto ");
-				Q cfg_label_nodes = CommonQueries.nodesStartingWith(loop_children_nodes, "label ");
-				Q cfg_ctrl_nodes = cfg.nodes(XCSG.ControlFlow_Node);
-				Q pcg_union = cfg_ctrl_nodes.union(cfg_goto_nodes.union(cfg_label_nodes));
+				Q cfg_goto_nodes = CommonQueries.nodesStartingWith(cfg, "goto ");
+				Q cfg_label_nodes = CommonQueries.nodesStartingWith(cfg, "label ");
+				Q cfg_ctrl_nodes = cfg.nodes(XCSG.ControlFlowCondition);
+//				Q pcg_union = cfg_ctrl_nodes.union(cfg_goto_nodes.union(cfg_label_nodes));
 				
-				AtlasSet<Node> intersection = pcg_union.intersection(loop_children_nodes).eval().nodes();
+				AtlasSet<Node> pcg_seed = cfg_ctrl_nodes.intersection(loop_children_nodes).union(cfg_goto_nodes).union(cfg_label_nodes).eval().nodes();
 				
 				// output PCG
 				Markup markup2 = new Markup();
-				markup2.set(Common.toQ(intersection), MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
+				
+				markup2.set(loop_children_nodes, MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
 				markup2.set(Common.toQ(valid_loop_label_nodeset), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
-				Q pcg = PCGFactory.create(cfg, Common.toQ(intersection)).getPCG();
+				Q pcg = PCGFactory.create(cfg, Common.toQ(pcg_seed)).getPCG();
 				saveDisplayPCG(pcg.eval(),sourceFile, methodName, markup2, false);
 				
 			}
