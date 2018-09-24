@@ -41,7 +41,7 @@ public class loopAnalyzer {
 	 * <p>
 	 * 1- The {@link SourceCorrespondence}.
 	 */
-	private static final String GOTO_GRAPH_DIRECTORY_NAME_PATTERN = "gotoCycle_graphs";
+	private static final String GOTO_GRAPH_DIRECTORY_NAME_PATTERN = "gotoLoop_graphs";
 	
 	/**
 	 * The directory where the verification graphs for the processed lock to be stored}.
@@ -60,8 +60,8 @@ public class loopAnalyzer {
 	 * The following is the parts of the name:
 	 * 1- The method name corresponding to the CFG.
 	 */
-	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "CFG@%s@%s@%s";
-	private static final String PCG_GRAPH_FILE_NAME_PATTERN = "PCG@%s@%s@%s";
+	private static final String CFG_GRAPH_FILE_NAME_PATTERN = "%s-CFG@%s@%s@%s";
+	private static final String PCG_GRAPH_FILE_NAME_PATTERN = "%s-PCG@%s@%s@%s";
 	
 	public loopAnalyzer()
 	{
@@ -69,25 +69,25 @@ public class loopAnalyzer {
 		
 	}
 	
-	private static void saveDisplayCFG(Graph cfgGraph, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
+	private static void saveDisplayCFG(Graph cfgGraph, int num, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
         if(displayGraphs){
             DisplayUtil.displayGraph(markup, cfgGraph);
         }
             
         try{
-            String cfgFileName = String.format(CFG_GRAPH_FILE_NAME_PATTERN, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
+            String cfgFileName = String.format(CFG_GRAPH_FILE_NAME_PATTERN, num, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
             SaveUtil.saveGraph(new File(currentgotoGraphsOutputDirectory, cfgFileName), cfgGraph, markup).join();
         } catch (InterruptedException e) {}
             
     }	
 	
-	private static void saveDisplayPCG(Graph pcgGraph, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
+	private static void saveDisplayPCG(Graph pcgGraph, int num, String sourceFile, String methodName, Markup markup, boolean displayGraphs) { 
         if(displayGraphs){
             DisplayUtil.displayGraph(markup, pcgGraph);
         }
             
         try{
-            String pcgFileName = String.format(PCG_GRAPH_FILE_NAME_PATTERN, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
+            String pcgFileName = String.format(PCG_GRAPH_FILE_NAME_PATTERN, num, sourceFile, methodName, VerificationProperties.getGraphImageFileNameExtension());
             SaveUtil.saveGraph(new File(currentgotoGraphsOutputDirectory, pcgFileName), pcgGraph, markup).join();
         } catch (InterruptedException e) {}
             
@@ -165,7 +165,9 @@ public class loopAnalyzer {
 		AtlasSet<Node> function_goto_loop_set = goto_loop_entry_nodes.containers().nodes(XCSG.Function).eval().nodes();
 		
 		// output graph
+		int num = 0; // numbering
 		for(Node function : function_goto_loop_set) {
+			num++;
 			// get CFG of this function
 			Q cfg = CommonQueries.cfg(Common.toQ(function));
 			
@@ -215,7 +217,7 @@ public class loopAnalyzer {
 				String methodName =  function.getAttr(XCSG.name).toString();
 				
 				// output CFG
-				saveDisplayCFG(cfg.eval(),sourceFile,methodName, markup, false);
+				saveDisplayCFG(cfg.eval(), num, sourceFile,methodName, markup, false);
 				
 				// get node set to generate PCG
 				Q cfg_goto_nodes = CommonQueries.nodesStartingWith(cfg, "goto ");
@@ -231,7 +233,7 @@ public class loopAnalyzer {
 				markup2.set(loop_children_nodes, MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
 				markup2.set(Common.toQ(valid_loop_label_nodeset), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
 				Q pcg = PCGFactory.create(cfg, Common.toQ(pcg_seed)).getPCG();
-				saveDisplayPCG(pcg.eval(),sourceFile, methodName, markup2, false);
+				saveDisplayPCG(pcg.eval(), num, sourceFile, methodName, markup2, false);
 				
 			}
 			
