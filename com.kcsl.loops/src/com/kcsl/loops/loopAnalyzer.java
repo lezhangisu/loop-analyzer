@@ -251,4 +251,57 @@ public class loopAnalyzer {
 //		
 	}
 	
+	public static void sampleGotoLoops() {
+		new loopAnalyzer().createDirectory();
+		
+		if(Common.universe().nodes("NATURAL_LOOP").eval().nodes().size()<1) {
+			com.ensoftcorp.open.jimple.commons.loops.DecompiledLoopIdentification.recoverLoops();
+			Log.info("DLI Done");
+		}else {
+			Log.info("No need for DLI");
+		}
+		
+		AtlasSet<Node> gotoLoopFuncSet = 
+				Common.universe().nodes(XCSG.Project).contained().nodesTaggedWithAll("isLabel",XCSG.Loop).parent().nodes(XCSG.Function).eval().nodes();
+		
+		Log.info("GotoLoop Functions: " + gotoLoopFuncSet.size());
+		
+		// output graph
+		int num = 0; // numbering
+		for(Node function : gotoLoopFuncSet) {
+			num++;
+			// get CFG of this function
+			Q cfg = CommonQueries.cfg(Common.toQ(function));
+			
+			// avoid empty CFGs
+			if(!CommonQueries.isEmpty(cfg)) {
+				
+				AtlasSet<Node> gotoSet = cfg.nodes(XCSG.GotoStatement).eval().nodes();
+				AtlasSet<Node> labelSet = cfg.nodes("isLabel").eval().nodes();
+				AtlasSet<Node> ctrlNodeSet = cfg.nodes(XCSG.ControlFlowCondition).eval().nodes();
+				
+				// output CFG
+				// mark up
+				Markup markup = new Markup();
+				markup.set(Common.toQ(gotoSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
+				markup.set(Common.toQ(labelSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
+				
+				// set file name
+				String sourceFile = getQualifiedFunctionName(function);
+				String methodName =  function.getAttr(XCSG.name).toString();
+				
+				saveDisplayCFG(cfg.eval(), num, sourceFile, methodName, markup, false);
+				
+				
+				// output PCG
+				AtlasSet<Node> pcg_seed = Common.toQ(gotoSet).union(Common.toQ(labelSet).union(Common.toQ(ctrlNodeSet))).eval().nodes();
+				
+				Q pcg = PCGFactory.create(cfg, Common.toQ(pcg_seed)).getPCG();
+				saveDisplayPCG(pcg.eval(), num, sourceFile, methodName, markup, false);
+				
+			}
+			
+		}
+	}
+	
 }
