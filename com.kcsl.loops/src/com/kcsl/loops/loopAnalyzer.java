@@ -41,7 +41,7 @@ public class loopAnalyzer {
 	 * <p>
 	 * 1- The {@link SourceCorrespondence}.
 	 */
-	private static final String GOTO_GRAPH_DIRECTORY_NAME_PATTERN = "gotoLoop_graphs";
+	private static String GOTO_GRAPH_DIRECTORY_NAME_PATTERN = "gotoLoop_graphs";
 	
 	/**
 	 * The directory where the verification graphs for the processed lock to be stored}.
@@ -95,6 +95,17 @@ public class loopAnalyzer {
 	
 	private void createDirectory(){
         String containingDirectoryName = String.format(GOTO_GRAPH_DIRECTORY_NAME_PATTERN);
+        currentgotoGraphsOutputDirectory = this.graphsOutputDirectory.resolve(containingDirectoryName).toFile();
+        if(!currentgotoGraphsOutputDirectory.exists())
+        {
+        if(!currentgotoGraphsOutputDirectory.mkdirs()){
+            Log.info("Cannot create directory:" + currentgotoGraphsOutputDirectory.getAbsolutePath());
+        }
+        }
+    }
+	
+	private void createDirectory(String path){
+        String containingDirectoryName = String.format(path);
         currentgotoGraphsOutputDirectory = this.graphsOutputDirectory.resolve(containingDirectoryName).toFile();
         if(!currentgotoGraphsOutputDirectory.exists())
         {
@@ -254,6 +265,8 @@ public class loopAnalyzer {
 	public static void sampleGotoLoops() {
 		new loopAnalyzer().createDirectory();
 		
+		tagGotoLoopExits();
+		
 		if(Common.universe().nodes("NATURAL_LOOP").eval().nodes().size()<1) {
 			com.ensoftcorp.open.jimple.commons.loops.DecompiledLoopIdentification.recoverLoops();
 			Log.info("DLI Done");
@@ -283,8 +296,10 @@ public class loopAnalyzer {
 				// output CFG
 				// mark up
 				Markup markup = new Markup();
+				markup.set(cfg.nodes("LoopChildNode"), MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW.darker());
 				markup.set(Common.toQ(gotoSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
 				markup.set(Common.toQ(labelSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
+				markup.set(cfg.nodes("NormalBoundaryNode"), MarkupProperty.NODE_BACKGROUND_COLOR, Color.MAGENTA);
 				
 				// set file name
 				String sourceFile = getQualifiedFunctionName(function);
@@ -302,6 +317,85 @@ public class loopAnalyzer {
 			}
 			
 		}
+	}
+	
+	
+	public static void tagGotoLoopExits() {
+		if(Common.universe().nodes("NATURAL_LOOP").eval().nodes().size()<1) {
+			com.ensoftcorp.open.jimple.commons.loops.DecompiledLoopIdentification.recoverLoops();
+			Log.info("DLI Done");
+		}else {
+			Log.info("No need for DLI");
+		}
+		
+		AtlasSet<Node> gotoLoopSet = 
+				Common.universe().nodes(XCSG.Project).contained().nodesTaggedWithAll("isLabel",XCSG.Loop).eval().nodes();
+		
+		Log.info("GotoLoop Functions: " + gotoLoopSet.size());
+		
+		for(Node loopHeader: gotoLoopSet) {
+			Q cfg = CommonQueries.cfg(Common.toQ(loopHeader).parent().nodes(XCSG.Function));
+			Q cfbe=cfg.edges(XCSG.ControlFlowBackEdge).retainEdges(); //Control flow back edge
+			Q dag=cfg.differenceEdges(cfbe).retainEdges(); // Control flow back edges removed
+			
+			AtlasSet<Node> loopChildSet = Common.universe().edges(XCSG.LoopChild).forward(Common.toQ(loopHeader)).retainNodes().eval().nodes();
+			for(Node loopChild : loopChildSet) {
+				loopChild.tag("LoopChildNode");
+			}
+			
+ 			for(Node g : Common.toQ(loopChildSet).nodes(XCSG.GotoStatement).eval().nodes()) {
+ 				if(cfg.successors(Common.toQ(g)).eval().nodes().getFirst().equals(loopHeader)) {
+ 					Q backSubGraph = dag.between(Common.toQ(loopHeader), Common.toQ(g));
+ 					Node nodeQ = backSubGraph.predecessors(Common.toQ(g)).eval().nodes().getFirst();
+ 					while(backSubGraph.eval().nodes().contains(nodeQ)) {
+ 						if(nodeQ.taggedWith(XCSG.ControlFlowIfCondition)) {
+ 							nodeQ.tag("NormalBoundaryNode");
+ 							break;
+ 						}
+ 						nodeQ = backSubGraph.predecessors(Common.toQ(nodeQ)).eval().nodes().getFirst();
+ 					}
+ 				}
+ 			}
+			
+		}
+		
+	}
+	
+	public static void loopChildTest() {
+	    GOTO_GRAPH_DIRECTORY_NAME_PATTERN = "loopChildTest";
+	    
+	    // get saving directory
+	    new loopAnalyzer().createDirectory();
+	    
+	    // run DLI to tag all loops
+	    if (Common.universe().nodes("NATURAL_LOOP").eval().nodes().size() < 1) {
+	        com.ensoftcorp.open.jimple.commons.loops.DecompiledLoopIdentification.recoverLoops();
+	        Log.info("DLI Done");
+	    } else {
+	        Log.info("No need for DLI");
+	    }
+	    
+	    AtlasSet < Node > function_w_loops = Common.universe().nodes(XCSG.Project).contained().nodesTaggedWithAll(XCSG.Loop).containers().nodes(XCSG.Function).eval().nodes();
+	    
+	    int num = 0;
+	    for (Node function: function_w_loops) {
+	    	num++;
+	        Q cfg = CommonQueries.cfg(Common.toQ(function));
+	        
+	        AtlasSet < Node > loopNodeSet = cfg.nodes(XCSG.Loop).eval().nodes();
+	        AtlasSet < Node > loopChildGotoNodeSet = Common.universe().edges(XCSG.LoopChild).
+	        		forward(Common.toQ(loopNodeSet)).retainNodes().nodes(XCSG.GotoStatement).eval().nodes();
+	       
+	        Markup markup = new Markup();
+	        markup.set(Common.toQ(loopChildGotoNodeSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
+	        
+	        // set file name
+	        String sourceFile = getQualifiedFunctionName(function);
+	        String methodName = function.getAttr(XCSG.name).toString();
+	        
+	        // output CFG
+	        saveDisplayCFG(cfg.eval(), num, sourceFile, methodName, markup, false);
+	    }
 	}
 	
 }
