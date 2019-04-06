@@ -380,13 +380,29 @@ public class loopAnalyzer {
 	    int num = 0;
 	    for (Node function: function_w_loops) {
 	    	num++;
-	        Q cfg = CommonQueries.cfg(Common.toQ(function));
+	        Q cfgQ = CommonQueries.cfg(Common.toQ(function));
+	        Q cfbeQ=cfgQ.edges(XCSG.ControlFlowBackEdge).retainEdges(); //Control flow back edge
+			Q dagQ=cfgQ.differenceEdges(cfbeQ); // Control flow back edges removed
 	        
-	        AtlasSet < Node > loopNodeSet = cfg.nodes(XCSG.Loop).eval().nodes();
-	        AtlasSet < Node > loopChildGotoNodeSet = Common.universe().edges(XCSG.LoopChild).
-	        		forward(Common.toQ(loopNodeSet)).retainNodes().nodes(XCSG.GotoStatement).eval().nodes();
+	        AtlasSet < Node > loopNodeSet = cfgQ.nodes(XCSG.Loop).eval().nodes();
+	        AtlasSet < Node > loopChildNodeSet = Common.universe().edges(XCSG.LoopChild).
+	        		forward(Common.toQ(loopNodeSet)).retainNodes().eval().nodes();
+	        AtlasSet < Node > loopChildGotoNodeSet = Common.toQ(loopChildNodeSet).nodes(XCSG.GotoStatement).eval().nodes();
 	       
+	        //test for loop exit labels
+//	        AtlasSet < Node > labelNodeSet = cfgQ.nodes("isLabel").eval().nodes();
+//	        AtlasSet < Node > targetSet = Common.toQ(labelNodeSet).difference(Common.toQ(loopChildNodeSet)).eval().nodes();
+//	        AtlasSet < Node > finalSet = new AtlasHashSet<Node>();
+//	        
+//	        for(Node labelNode: targetSet) {
+//	        	if((dagQ.predecessors(Common.toQ(labelNode)).nodes(XCSG.GotoStatement).intersection(Common.toQ(loopChildGotoNodeSet))).eval().nodes().size() > 0) {
+//	        		finalSet.add(labelNode);
+//	        	}
+//	        }
+	        
 	        Markup markup = new Markup();
+//	        markup.set(Common.toQ(finalSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
+	        markup.set(Common.toQ(loopChildNodeSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.YELLOW);
 	        markup.set(Common.toQ(loopChildGotoNodeSet), MarkupProperty.NODE_BACKGROUND_COLOR, Color.RED);
 	        
 	        // set file name
@@ -394,7 +410,7 @@ public class loopAnalyzer {
 	        String methodName = function.getAttr(XCSG.name).toString();
 	        
 	        // output CFG
-	        saveDisplayCFG(cfg.eval(), num, sourceFile, methodName, markup, false);
+	        saveDisplayCFG(cfgQ.eval(), num, sourceFile, methodName, markup, false);
 	    }
 	}
 	
