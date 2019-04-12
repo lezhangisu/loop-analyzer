@@ -166,14 +166,14 @@ public class loopAnalyzer {
 		Q all_loop_entry_nodes = Common.universe().nodesTaggedWithAny(XCSG.Loop);
 		
 		// get all functions that have loops
-//		Q functions = all_loop_entry_nodes.containers().nodes(XCSG.Function);
+//		Q functions = all_loop_entry_nodes.parent().nodes(XCSG.Function);
 //		AtlasSet<Node> function_set = functions.eval().nodes();
 
 		// get all GOTO loop entry nodes (entry nodes should always be the label node)
 		Q goto_loop_entry_nodes = CommonQueries.nodesStartingWith(all_loop_entry_nodes, "label ");
 
 		// get all functions have GOTO loops
-		AtlasSet<Node> function_goto_loop_set = goto_loop_entry_nodes.containers().nodes(XCSG.Function).eval().nodes();
+		AtlasSet<Node> function_goto_loop_set = goto_loop_entry_nodes.parent().nodes(XCSG.Function).eval().nodes();
 		
 		// output graph
 		int num = 0; // numbering
@@ -275,7 +275,7 @@ public class loopAnalyzer {
 		}
 		
 		AtlasSet<Node> gotoLoopFuncSet = 
-				Common.universe().nodes(XCSG.Project).contained().nodesTaggedWithAll("isLabel",XCSG.Loop).parent().nodes(XCSG.Function).eval().nodes();
+				Common.universe().nodesTaggedWithAll("isLabel",XCSG.Loop).parent().nodes(XCSG.Function).eval().nodes();
 		
 		Log.info("GotoLoop Functions: " + gotoLoopFuncSet.size());
 		
@@ -329,7 +329,7 @@ public class loopAnalyzer {
 		}
 		
 		AtlasSet<Node> gotoLoopSet = 
-				Common.universe().nodes(XCSG.Project).contained().nodesTaggedWithAll("isLabel",XCSG.Loop).eval().nodes();
+				Common.universe().nodesTaggedWithAll("isLabel",XCSG.Loop).eval().nodes();
 		
 		Log.info("GotoLoop Functions: " + gotoLoopSet.size());
 		
@@ -375,7 +375,7 @@ public class loopAnalyzer {
 	        Log.info("No need for DLI");
 	    }
 	    
-	    AtlasSet < Node > function_w_loops = Common.universe().nodes(XCSG.Project).contained().nodesTaggedWithAll(XCSG.Loop).containers().nodes(XCSG.Function).eval().nodes();
+	    AtlasSet < Node > function_w_loops = Common.universe().nodesTaggedWithAll(XCSG.Loop).parent().nodes(XCSG.Function).eval().nodes();
 	    
 	    int num = 0;
 	    for (Node function: function_w_loops) {
